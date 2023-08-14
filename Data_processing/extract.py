@@ -1,15 +1,16 @@
 __author__ = "JasonLuo"
 import zipfile
 
-# Path to the zip file you want to extract
-zip_file_path = '/home/hluo/Dataset/Abdominal_trauma/rsna-2023-abdominal-trauma-detection.zip'
+def unzipfile(zip_file_path,dirout):
+    with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+        # Extract all contents to the specified directory
+        zip_ref.extractall(dirout)
 
-# Directory where you want to extract the contents
-extracted_folder_path = '/home/hluo/Dataset/Abdominal_trauma'
+def main():
+    zip_file_path = '/home/hluo/Dataset/Abdominal_trauma/rsna-2023-abdominal-trauma-detection.zip'
+    extracted_folder_path = '/home/hluo/Dataset/Abdominal_trauma'
+    unzipfile(zip_file_path=zip_file_path, dirout=extracted_folder_path)
 
-# Open the zip file
-with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-    # Extract all contents to the specified directory
-    zip_ref.extractall(extracted_folder_path)
+if __name__ == '__main__':
+    main()
 
-print("Extraction complete.")
