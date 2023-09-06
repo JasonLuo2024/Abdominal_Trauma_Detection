@@ -5,7 +5,8 @@ import os
 from PIL import Image
 import pandas as pd
 import torch
-train_csv = r'D:\Abdominal_Trauma\rsna-2023-abdominal-trauma-detection\train.csv'
+from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
+train_csv = r'C:\Users\a6649\Desktop\Honors\Dataset\train.csv'
 
 def getLabel(patient_ID):
     label = []
@@ -15,6 +16,7 @@ def getLabel(patient_ID):
         for catogry in ['extravasation_healthy','bowel_healthy','kidney_healthy','liver_healthy','spleen_healthy']:
             label.append(int(filtered_df.iloc[0][catogry]))
         return label
+
 
 
 class PNGDataset(Dataset):
@@ -47,18 +49,13 @@ class PNGDataset(Dataset):
         if self.transform:
             img = self.transform(img)
 
-        label = torch.tensor(self.label_list[idx],dtype=torch.float32)
+        label = torch.tensor(self.label_list[idx],dtype=torch.long)
         return img,label
 
 
-def main():
-    transform = transforms.Compose([
-        transforms.Resize((512, 512)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+def list_extend(y_true,y_pred,labels,preds):
+    for index, value in enumerate(labels):
+        y_true[index].extend(value)
+    for index, value in enumerate(preds):
+        y_pred[index].extend(value)
 
-    dataset = PNGDataset(r'C:\Users\Woody\Desktop\testing', transform=transform)
-
-if __name__ == '__main__':
-    main()

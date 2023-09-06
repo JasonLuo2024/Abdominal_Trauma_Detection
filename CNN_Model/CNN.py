@@ -62,92 +62,108 @@ class MultiDensennet169(nn.Module):
 
         return output
 
+def list_extend(y_true,y_pred,labels,preds):
+    label = labels.cpu().numpy().tolist()
+    pred = preds.cpu().numpy().tolist()
+    for index, value in enumerate(label):
+
+        y_true[index].extend(value)
+    for index, value in enumerate(pred):
+        y_pred[index].append(value)
+def evaluate(y_true,y_pred):
+    f1 = f1_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred)
+    recall = recall_score(y_true, y_pred)
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    specificity = tn / (tn + fp)
+    sensitivity = tp / (tp + fn)
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+
 def main():
-    dataset = PNGDataset(r'C:\Users\Woody\Desktop\testing', transform=transform)
+    dataset = PNGDataset(r'C:\Users\a6649\Desktop\Honors\Dataset\10_iamge_for_tessing', transform=transform)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
 
 
-    model = models.densenet169(pretrained=True).to(device)
-    num_features = model.classifier.in_features
-    model.classifier = torch.nn.Sequential(
-        torch.nn.Linear(num_features, 512),
-        torch.nn.ReLU(),
-        torch.nn.Dropout(0.5),
-        torch.nn.Linear(512, 5),
-        torch.nn.Softmax(dim=1)
-    )
-    model = model.to(device)
+    model = MultiDensennet169().to(device)
+
     criterion = torch.nn.CrossEntropyLoss()
 
     # if dataset is imbalanced -> Adam, otherwise -> SGD
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.002, momentum=0.9)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001,momentum=0.9)
     # Split the data into train and test sets
 
-    train_indices, test_indices = train_test_split(list(range(int(len(dataset)))), test_size=0.2, random_state=123)
+    train_indices, test_indices = train_test_split(list(range(int(len(dataset)))), test_size=0.4, random_state=123)
 
     train_dataset = torch.utils.data.Subset(dataset, train_indices)
     test_dataset = torch.utils.data.Subset(dataset, test_indices)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=12, shuffle=True, num_workers=6)
-    test_dataloader = DataLoader(test_dataset, batch_size=12, shuffle=False, num_workers=6)
+    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=6)
+    test_dataloader = DataLoader(test_dataset, batch_size=2, shuffle=False, num_workers=6)
 
-    num_epochs = 80
+    num_epochs = 40
 
     for epoch in tqdm(range(num_epochs)):
-        print(f'Epoch {epoch + 1}/{num_epochs}')
-        print('-' * 10)
 
         running_loss = 0.0
         running_corrects = 0
+        model.train()
         try:
-            for img, label in tqdm(train_dataloader):
-                model.train()
-                img = img.to(device)
-                label = label.to(device)
-                outputs = model(img)
-                loss = criterion(outputs, label)
+#             for img, label in tqdm(train_dataloader):
+#                 img = img.to(device)
+#                 label = label.squeeze().to(device)
+#                 outputs = model(img)
+#
+#                 loss = criterion(outputs, label)
+#
+#                 _, preds = torch.max(outputs, 1)
+#
+#                 optimizer.zero_grad()
+#
+#                 loss.backward()
+#
+#                 optimizer.step()
+#
+#                 running_loss += (loss.item()) * img.size(0)
+#                 running_corrects += torch.sum(preds == label.data)
+#
+# # Here is the overall correctness and accuracy.
+#             epoch_loss = running_loss / (len(train_dataset) * 5)
+#             epoch_acc = running_corrects.double() / (len(train_dataset) * 5)
+#             print(f'Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
-                # _, preds = torch.max(outputs, 1)
+            model.eval()
 
-                predictions = (outputs > 0.2).float()
 
-                optimizer.zero_grad()
+            y_true = [[],[],[],[],[]]
+            y_pred = [[],[],[],[],[]]
 
-                loss.backward()
-
-                optimizer.step()
-
-                running_loss += (loss.item()) * img.size(0)
-                running_corrects += torch.sum(predictions == label.data)
-            epoch_loss = running_loss / (len(train_dataset) * 5)
-            epoch_acc = running_corrects.double() / (len(train_dataset) * 5)
-            print(f'Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
-
-            model.eval()  # Set the model to evaluation mode
-            y_true = []
-            y_pred = []
             # output_file = save_path + str(epoch) + 'metrics.txt'
-            # # # evaluate the result at each epoch
             with torch.no_grad():
                 for img, label in tqdm(test_dataloader):
                     img = img.to(device)
-                    label = label.to(device)
-                    preds = model(img)
 
-                    predictions = (outputs > 0.2).float()
-                    running_corrects += torch.sum(predictions == label.data)
+                    label = label.to(device)
+
+                    outputs = model(img)
+                    _, preds = torch.max(outputs, 1)
+                    # running_corrects += torch.sum(preds == label.data)
+
+                    print(label,preds)
+                    print(label.cpu().numpy().tolist(),preds.cpu().numpy().tolist())
+
+                    list_extend(y_true,y_pred,label,preds)
+
+                print(y_true,y_pred)
                 epoch_acc = running_corrects.double() / (len(test_dataset)*5)
+                # the reason why it needs to time 5 is that for each image has five label.
+
+
                 print(f'Acc: {epoch_acc:.4f}')
             # Calculate evaluation metrics
-            f1 = f1_score(y_true, y_pred)
-            precision = precision_score(y_true, y_pred)
-            recall = recall_score(y_true, y_pred)
-            tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-            specificity = tn / (tn + fp)
-            sensitivity = tp / (tp + fn)
-            accuracy = (tp + tn) / (tp + tn + fp + fn)
+            # Need to evaluate five label individually.
+
 
 
             # with open(output_file, "w") as file:
